@@ -40,6 +40,12 @@
   color: $color-text-primary;
 }
 
+.headerAge {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  font-weight: normal;
+}
+
 .headerMeal {
   font-size: $font-size-sm;
   color: $color-text-tertiary;
@@ -61,10 +67,65 @@
   font-size: 32rpx;
 }
 
+.mealInfo {
+  background: $color-bg-card;
+  padding: $spacing-sm $page-padding;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  border-bottom: 1rpx solid $color-border;
+}
+
+.mealInfoItem {
+  display: flex;
+  align-items: center;
+  padding: 6rpx 12rpx;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+}
+
+.mealInfoLabel {
+  font-size: 20rpx;
+  color: $color-text-tertiary;
+  margin-right: 6rpx;
+}
+
+.mealInfoValue {
+  font-size: 20rpx;
+  color: $color-text-primary;
+}
+
 .messageList {
   flex: 1;
   padding: $spacing-md $page-padding;
   padding-bottom: 200rpx;
+}
+
+.emptyMessages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx 0;
+}
+
+.emptyText {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.systemMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: $spacing-md 0;
+}
+
+.systemText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8rpx 16rpx;
+  border-radius: $radius-button;
 }
 
 .messageItem {

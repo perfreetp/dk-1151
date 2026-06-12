@@ -40,16 +40,12 @@ const SquarePage: React.FC = () => {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          if (filter.dateTime === 'today') {
-            const todayEnd = new Date(today);
-            todayEnd.setHours(23, 59, 59, 999);
-            return mealDate >= today && mealDate <= todayEnd;
-          } else if (filter.dateTime === 'tomorrow') {
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowEnd = new Date(tomorrow);
-            tomorrowEnd.setHours(23, 59, 59, 999);
-            return mealDate >= tomorrow && mealDate <= tomorrowEnd;
+          if (filter.dateTime === 'tonight') {
+            const tonightStart = new Date(today);
+            tonightStart.setHours(18, 0, 0, 0);
+            const tonightEnd = new Date(today);
+            tonightEnd.setHours(23, 59, 59, 999);
+            return mealDate >= tonightStart && mealDate <= tonightEnd;
           } else {
             const targetDate = new Date(filter.dateTime as string);
             targetDate.setHours(0, 0, 0, 0);

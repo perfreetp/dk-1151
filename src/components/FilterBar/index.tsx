@@ -31,28 +31,25 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
   };
 
   const getDateOptions = () => {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const options = [];
     
-    const formatDate = (date: Date) => {
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      return `${date.getFullYear()}-${month}-${day}`;
-    };
-
-    const formatDisplay = (date: Date) => {
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${month}月${day}日`;
-    };
-
-    return [
-      { value: 'today', label: `今天(${formatDisplay(today)})` },
-      { value: 'tomorrow', label: `明天(${formatDisplay(tomorrow)})` },
-      { value: formatDate(today), label: formatDisplay(today) },
-      { value: formatDate(tomorrow), label: formatDisplay(tomorrow) }
-    ];
+      const dateStr = `${date.getFullYear()}-${month}-${day}`;
+      
+      let label = '';
+      if (i === 0) label = '今天';
+      else if (i === 1) label = '明天';
+      else if (i === 2) label = '后天';
+      else label = `${month}月${day}日`;
+      
+      options.push({ value: dateStr, label });
+    }
+    
+    return options;
   };
 
   const filters = [
@@ -96,6 +93,12 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
                 
                 {item.key === 'dateTime' && (
                   <>
+                    <View
+                      className={styles.option}
+                      onClick={() => handleOptionSelect(item.key, 'tonight')}
+                    >
+                      <Text className={styles.optionText}>今晚有空</Text>
+                    </View>
                     {getDateOptions().map((option) => (
                       <View
                         key={option.value}
@@ -109,7 +112,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
                 )}
 
                 {item.key === 'businessDistrict' &&
-                  ['国贸CBD', '三里屯', '中关村', '望京', '五道口', '西单'].map((option) => (
+                  ['国贸CBD', '三里屯', '中关村', '望京', '五道口', '西单', '王府井', '朝阳大悦城'].map((option) => (
                     <View
                       key={option}
                       className={styles.option}
@@ -120,7 +123,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
                   ))
                 }
                 {item.key === 'cuisine' &&
-                  ['川菜', '粤菜', '火锅', '烧烤', '日料', '西餐'].map((option) => (
+                  ['川菜', '粤菜', '湘菜', '火锅', '烧烤', '日料', '韩料', '西餐', '其他'].map((option) => (
                     <View
                       key={option}
                       className={styles.option}
@@ -133,7 +136,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
                 {item.key === 'paymentType' &&
                   [
                     { value: 'aa', label: 'AA' },
-                    { value: 'treat', label: '请客' }
+                    { value: 'treat', label: '请客' },
+                    { value: 'split', label: '拼单' }
                   ].map((option) => (
                     <View
                       key={option.value}

@@ -71,42 +71,53 @@ const ChatPage: React.FC = () => {
   const handleReschedule = (chat: Chat, e: any) => {
     e.stopPropagation();
 
+    const meal = mealStore.getById(chat.mealId);
+    if (!meal) {
+      Taro.showToast({ title: '饭局不存在', icon: 'none' });
+      return;
+    }
+
+    const currentDate = meal.dateTime.split(' ')[0];
+    const currentTime = meal.dateTime.split(' ')[1] || '18:00';
+
     Taro.showModal({
       title: '改期',
-      content: '请选择新的用餐日期',
+      content: `当前时间：${meal.dateTime}\n\n请输入新日期和时间\n格式：YYYY-MM-DD HH:MM\n例如：2026-06-20 19:30`,
       editable: true,
-      placeholderText: '格式: 2026-06-20',
+      placeholderText: `${currentDate} ${currentTime}`,
       success: (res) => {
         if (res.confirm && res.content) {
-          const newDate = res.content;
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-            Taro.showToast({ title: '日期格式不正确，请使用 YYYY-MM-DD 格式', icon: 'none' });
+          const input = res.content.trim();
+          const match = input.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?$/);
+          
+          if (!match) {
+            Taro.showToast({ title: '格式错误，请使用\nYYYY-MM-DD HH:MM格式', icon: 'none' });
             return;
           }
 
-          const meal = mealStore.getById(chat.mealId);
-          if (meal) {
-            const originalDateTime = meal.originalDateTime || meal.dateTime;
-            const newDateTime = `${newDate} 18:00`;
+          const newDate = match[1];
+          const newTime = match[2] || '18:00';
+          const newDateTime = `${newDate} ${newTime}`;
 
-            mealStore.update(chat.mealId, {
-              originalDateTime,
-              dateTime: newDateTime
-            });
+          const originalDateTime = meal.originalDateTime || meal.dateTime;
+          
+          mealStore.update(chat.mealId, {
+            originalDateTime,
+            dateTime: newDateTime
+          });
 
-            chatStore.update(chat.id, {
-              lastMessage: {
-                id: `sys_${Date.now()}`,
-                senderId: 'system',
-                content: `已将饭局改期至 ${newDateTime}`,
-                type: 'system',
-                createdAt: new Date().toISOString()
-              }
-            });
+          chatStore.update(chat.id, {
+            lastMessage: {
+              id: `sys_${Date.now()}`,
+              senderId: 'system',
+              content: `已将饭局改期至 ${newDateTime}`,
+              type: 'system',
+              createdAt: new Date().toISOString()
+            }
+          });
 
-            loadChats();
-            Taro.showToast({ title: '改期成功', icon: 'success' });
-          }
+          loadChats();
+          Taro.showToast({ title: '改期成功', icon: 'success' });
         }
       }
     });

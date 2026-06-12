@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { Message, User } from '../../types';
-import { chatStore, mealStore, generateId } from '../../utils/store';
+import { Message, User, Meal } from '../../types';
+import { chatStore, mealStore, userStore, generateId } from '../../utils/store';
 import styles from './index.module.scss';
 
 const ChatRoomPage: React.FC = () => {
@@ -11,7 +11,8 @@ const ChatRoomPage: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [inputText, setInputText] = useState('');
   const [otherUser, setOtherUser] = useState<User | null>(null);
-  const [mealTitle, setMealTitle] = useState('');
+  const [meal, setMeal] = useState<Meal | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const { chatId: id } = Taro.getCurrentInstance().router?.params || {};
@@ -19,20 +20,26 @@ const ChatRoomPage: React.FC = () => {
       setChatId(id);
       loadChatData(id);
     }
-  }, []);
+  }, [refreshKey]);
 
   const loadChatData = (id: string) => {
+    const user = userStore.getCurrentUser();
+    setCurrentUser(user);
+
     const chat = chatStore.getById(id);
     if (chat) {
       setMessages(chat.messages);
-      setCurrentUser(chat.participants[0]);
-      if (chat.participants.length > 1) {
-        setOtherUser(chat.participants[1]);
+
+      const foundOtherUser = chat.participants.find(p => p.id !== user.id);
+      if (foundOtherUser) {
+        setOtherUser(foundOtherUser);
+      } else if (chat.participants.length > 0) {
+        setOtherUser(chat.participants[0]);
       }
 
-      const meal = mealStore.getById(chat.mealId);
-      if (meal) {
-        setMealTitle(meal.title);
+      const mealData = mealStore.getById(chat.mealId);
+      if (mealData) {
+        setMeal(mealData);
       }
     }
   };
@@ -71,6 +78,7 @@ const ChatRoomPage: React.FC = () => {
     chatStore.addMessage(chatId, newMessage);
     setMessages([...messages, newMessage]);
     setInputText('');
+    setRefreshKey(prev => prev + 1);
   };
 
   const formatTime = (dateStr: string) => {
@@ -85,17 +93,64 @@ const ChatRoomPage: React.FC = () => {
           <Text className={styles.backIcon}>←</Text>
         </View>
         <View className={styles.headerInfo}>
-          <Text className={styles.headerName}>{otherUser?.name || '聊天'}</Text>
-          <Text className={styles.headerMeal}>{mealTitle}</Text>
+          <Text className={styles.headerName}>
+            {otherUser?.name || '聊天'}
+            {otherUser && (
+              <Text className={styles.headerAge}> {otherUser.age}岁</Text>
+            )}
+          </Text>
+          <Text className={styles.headerMeal}>{meal?.title || '饭局'}</Text>
         </View>
         <View className={styles.emergencyButton} onClick={handleEmergency}>
           <Text className={styles.emergencyIcon}>🆘</Text>
         </View>
       </View>
 
+      {meal && (
+        <View className={styles.mealInfo}>
+          <View className={styles.mealInfoItem}>
+            <Text className={styles.mealInfoLabel}>时间</Text>
+            <Text className={styles.mealInfoValue}>{meal.dateTime}</Text>
+          </View>
+          <View className={styles.mealInfoItem}>
+            <Text className={styles.mealInfoLabel}>地点</Text>
+            <Text className={styles.mealInfoValue}>{meal.businessDistrict}</Text>
+          </View>
+          <View className={styles.mealInfoItem}>
+            <Text className={styles.mealInfoLabel}>预算</Text>
+            <Text className={styles.mealInfoValue}>¥{meal.budget}/人</Text>
+          </View>
+          <View className={styles.mealInfoItem}>
+            <Text className={styles.mealInfoLabel}>付费</Text>
+            <Text className={styles.mealInfoValue}>
+              {meal.paymentType === 'aa' ? 'AA' : meal.paymentType === 'treat' ? '请客' : '拼单'}
+            </Text>
+          </View>
+          <View className={styles.mealInfoItem}>
+            <Text className={styles.mealInfoLabel}>偏好</Text>
+            <Text className={styles.mealInfoValue}>{meal.chatPreference}</Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView scrollY className={styles.messageList}>
+        {messages.length === 0 && (
+          <View className={styles.emptyMessages}>
+            <Text className={styles.emptyText}>暂无消息，快来发起对话吧~</Text>
+          </View>
+        )}
         {messages.map((msg, index) => {
           const isMy = msg.senderId === currentUser?.id;
+          const isSystem = msg.type === 'system';
+          
+          if (isSystem) {
+            return (
+              <View key={msg.id} className={styles.systemMessage}>
+                <Text className={styles.systemText}>{msg.content}</Text>
+              </View>
+            );
+          }
+
           return (
             <View key={msg.id} className={styles.messageItem}>
               {index === 0 || (index > 0 && new Date(messages[index - 1].createdAt).getDate() !== new Date(msg.createdAt).getDate()) ? (
