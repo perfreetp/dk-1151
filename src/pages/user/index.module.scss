@@ -1,0 +1,317 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 180rpx;
+}
+
+.header {
+  background: linear-gradient(180deg, #fff5f3 0%, $color-bg-page 100%);
+  padding: $spacing-xl $page-padding;
+  padding-top: calc(env(safe-area-inset-top) + $spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.backButton {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + $spacing-sm);
+  left: $page-padding;
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backIcon {
+  font-size: 32rpx;
+  color: $color-text-white;
+}
+
+.avatar {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: $radius-round;
+  border: 6rpx solid $color-bg-card;
+  box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.2);
+  margin-bottom: $spacing-md;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-sm;
+}
+
+.name {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-right: $spacing-sm;
+}
+
+.genderBadge {
+  width: 40rpx;
+  height: 40rpx;
+  background: $color-female;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+}
+
+.meta {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-md;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $spacing-sm;
+}
+
+.tag {
+  padding: 10rpx 20rpx;
+  background: $color-bg-card;
+  border: 2rpx solid $color-primary;
+  border-radius: $radius-button;
+}
+
+.tagText {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.content {
+  padding: 0 $page-padding;
+}
+
+.statsCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-top: -60rpx;
+  position: relative;
+  z-index: 10;
+  margin-bottom: $spacing-md;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-sm;
+}
+
+.statItem {
+  text-align: center;
+  padding: $spacing-sm;
+}
+
+.statValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  margin-bottom: 4rpx;
+}
+
+.statLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.bioCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  display: flex;
+  align-items: center;
+
+  &::before {
+    content: '';
+    width: 6rpx;
+    height: 32rpx;
+    background: $color-primary;
+    border-radius: 3rpx;
+    margin-right: $spacing-sm;
+  }
+}
+
+.bio {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  line-height: $line-height-loose;
+}
+
+.preferenceCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.preferenceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-md;
+}
+
+.preferenceItem {
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+.preferenceLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: 8rpx;
+}
+
+.preferenceTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.preferenceTag {
+  padding: 6rpx 12rpx;
+  background: rgba($color-primary, 0.1);
+  border-radius: $radius-xs;
+}
+
+.preferenceTagText {
+  font-size: $font-size-xs;
+  color: $color-primary;
+}
+
+.reviewsCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.reviewItem {
+  padding: $spacing-md 0;
+  border-bottom: 1rpx solid $color-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.reviewHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-sm;
+}
+
+.reviewerAvatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: $radius-round;
+  margin-right: $spacing-sm;
+}
+
+.reviewerInfo {
+  flex: 1;
+}
+
+.reviewerName {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+}
+
+.reviewTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.reviewRating {
+  display: flex;
+  align-items: center;
+}
+
+.ratingStars {
+  color: #ffa94d;
+  font-size: $font-size-sm;
+}
+
+.reviewContent {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-loose;
+  margin-bottom: $spacing-sm;
+}
+
+.reviewTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.reviewTag {
+  padding: 6rpx 12rpx;
+  background: $color-bg-page;
+  border-radius: $radius-xs;
+}
+
+.reviewTagText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: $spacing-md $page-padding;
+  padding-bottom: calc(env(safe-area-inset-bottom) + $spacing-md);
+  background: $color-bg-card;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.actionButton {
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.3);
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.actionText {
+  font-size: $font-size-lg;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}

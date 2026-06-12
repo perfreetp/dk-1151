@@ -1,0 +1,204 @@
+@use '@/styles/variables.scss' as *;
+
+.card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.1);
+}
+
+.header {
+  margin-bottom: $spacing-md;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-sm;
+}
+
+.title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  flex: 1;
+  margin-right: $spacing-sm;
+}
+
+.statusBadge {
+  padding: 4rpx 16rpx;
+  border-radius: $radius-xs;
+}
+
+.statusText {
+  font-size: $font-size-xs;
+  color: $color-text-white;
+}
+
+.creatorRow {
+  display: flex;
+  align-items: center;
+}
+
+.creatorAvatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-round;
+  margin-right: $spacing-sm;
+}
+
+.creatorInfo {
+  flex: 1;
+}
+
+.creatorName {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: 4rpx;
+}
+
+.ratingRow {
+  display: flex;
+  align-items: center;
+}
+
+.rating {
+  font-size: $font-size-xs;
+  color: #ffa94d;
+}
+
+.dot {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin: 0 8rpx;
+}
+
+.punctuality {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-md;
+}
+
+.tag {
+  padding: 8rpx 16rpx;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+}
+
+.tagText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.paymentTag {
+  padding: 8rpx 16rpx;
+  border-radius: $radius-sm;
+}
+
+.paymentText {
+  font-size: $font-size-xs;
+  color: $color-text-white;
+}
+
+.femaleTag {
+  padding: 8rpx 16rpx;
+  background: $color-female;
+  border-radius: $radius-sm;
+}
+
+.femaleText {
+  font-size: $font-size-xs;
+  color: $color-text-white;
+}
+
+.info {
+  display: flex;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-md;
+  padding: $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+}
+
+.infoItem {
+  flex: 1;
+}
+
+.infoLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: 4rpx;
+}
+
+.infoValue {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.participants {
+  display: flex;
+  align-items: center;
+}
+
+.avatarStack {
+  position: relative;
+  width: 140rpx;
+  height: 56rpx;
+  margin-right: $spacing-sm;
+}
+
+.participantAvatar {
+  position: absolute;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-round;
+  border: 2rpx solid $color-bg-card;
+}
+
+.moreCount {
+  position: absolute;
+  left: 120rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-round;
+  background: $color-bg-page;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid $color-bg-card;
+}
+
+.moreCountText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.participantText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.拼桌Badge {
+  padding: 8rpx 16rpx;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+}
+
+.拼桌Text {
+  font-size: $font-size-xs;
+  color: $color-text-white;
+}
