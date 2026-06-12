@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal } from '../../types';
-import { mockMeals } from '../../data/mock';
+import { mealStore } from '../../utils/store';
 import styles from './index.module.scss';
 
 const MyDatesPage: React.FC = () => {
@@ -12,18 +12,39 @@ const MyDatesPage: React.FC = () => {
     total: 0,
     completed: 0,
     cancelled: 0,
-    rating: 0
+    rating: 4.8
   });
 
   useEffect(() => {
-    setMyMeals(mockMeals.slice(0, 3));
-    setStats({
-      total: mockMeals.length,
-      completed: 12,
-      cancelled: 2,
-      rating: 4.8
-    });
+    loadMyMeals();
   }, []);
+
+  const loadMyMeals = () => {
+    const meals = mealStore.getAll();
+    setMyMeals(meals);
+
+    const completedMeals = meals.filter(m => m.status === 'completed').length;
+    const cancelledMeals = meals.filter(m => m.status === 'cancelled').length;
+
+    let totalRating = 0;
+    let ratingCount = 0;
+    meals.forEach(meal => {
+      if (meal.ratings && meal.ratings.length > 0) {
+        meal.ratings.forEach(r => {
+          totalRating += r.rating;
+          ratingCount++;
+        });
+      }
+    });
+    const avgRating = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : '4.8';
+
+    setStats({
+      total: meals.length,
+      completed: completedMeals,
+      cancelled: cancelledMeals,
+      rating: parseFloat(avgRating)
+    });
+  };
 
   const handleCheckin = (meal: Meal) => {
     Taro.showModal({
@@ -40,7 +61,31 @@ const MyDatesPage: React.FC = () => {
   };
 
   const handleRate = (meal: Meal) => {
-    Taro.showToast({ title: '评价功能开发中', icon: 'none' });
+    Taro.showModal({
+      title: '评价饭局',
+      content: '请选择评分（1-5星）',
+      editable: true,
+      placeholderText: '写下你的评价...',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const rating = parseInt(res.content.split('星')[0]) || 5;
+          const comment = res.content.replace(/^[1-5]星/, '').trim() || '好评';
+
+          const newRating = {
+            odinnerId: meal.creator.id,
+            rating: Math.min(5, Math.max(1, rating)),
+            comment,
+            tags: ['聊得来', '守时']
+          };
+
+          const updatedRatings = [...(meal.ratings || []), newRating];
+          mealStore.update(meal.id, { ratings: updatedRatings });
+
+          loadMyMeals();
+          Taro.showToast({ title: '评价成功', icon: 'success' });
+        }
+      }
+    });
   };
 
   const handleCancel = (meal: Meal) => {
@@ -51,7 +96,25 @@ const MyDatesPage: React.FC = () => {
       cancelText: '再想想',
       success: (res) => {
         if (res.confirm) {
+          mealStore.update(meal.id, { status: 'cancelled' });
+          loadMyMeals();
           Taro.showToast({ title: '已取消', icon: 'success' });
+        }
+      }
+    });
+  };
+
+  const handleMarkNoShow = (meal: Meal) => {
+    Taro.showModal({
+      title: '标记爽约',
+      content: '确定对方爽约了吗？这将影响对方的信用评分',
+      confirmText: '确认爽约',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          mealStore.update(meal.id, { status: 'cancelled' });
+          loadMyMeals();
+          Taro.showToast({ title: '已标记爽约', icon: 'success' });
         }
       }
     });
@@ -234,7 +297,9 @@ const MyDatesPage: React.FC = () => {
                       style={{ flex: 1 }}
                       onClick={() => handleRate(meal)}
                     >
-                      <Text className={styles.rateText}>查看评价</Text>
+                      <Text className={styles.rateText}>
+                        {meal.ratings && meal.ratings.length > 0 ? '查看评价' : '去评价'}
+                      </Text>
                     </View>
                   )}
                   {meal.status === 'recruiting' && (

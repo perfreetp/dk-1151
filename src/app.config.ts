@@ -6,7 +6,8 @@ export default defineAppConfig({
     'pages/chat/index',
     'pages/mydates/index',
     'pages/detail/index',
-    'pages/user/index'
+    'pages/user/index',
+    'pages/chatroom/index'
   ],
   window: {
     backgroundTextStyle: 'light',

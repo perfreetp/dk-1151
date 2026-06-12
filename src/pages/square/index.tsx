@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Input, PullToRefresh } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal, Filter } from '../../types';
-import { mockMeals } from '../../data/mock';
+import { mealStore } from '../../utils/store';
 import MealCard from '../../components/MealCard';
 import FilterBar from '../../components/FilterBar';
 import styles from './index.module.scss';
@@ -21,7 +21,7 @@ const SquarePage: React.FC = () => {
   const loadMeals = () => {
     setLoading(true);
     setTimeout(() => {
-      let filteredMeals = [...mockMeals];
+      let filteredMeals = [...mealStore.getAll()];
 
       if (filter.businessDistrict) {
         filteredMeals = filteredMeals.filter(
@@ -34,15 +34,41 @@ const SquarePage: React.FC = () => {
       if (filter.paymentType) {
         filteredMeals = filteredMeals.filter(m => m.paymentType === filter.paymentType);
       }
+      if (filter.dateTime) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        filteredMeals = filteredMeals.filter(m => {
+          const mealDate = new Date(m.dateTime);
+          mealDate.setHours(0, 0, 0, 0);
+
+          if (filter.dateTime === 'tonight') {
+            const tonight = new Date(today);
+            tonight.setHours(23, 59, 59, 999);
+            return mealDate.getTime() === today.getTime() && mealDate <= tonight;
+          } else if (filter.dateTime === 'tomorrow') {
+            return mealDate.getTime() === tomorrow.getTime();
+          } else if (filter.dateTime === 'week') {
+            const nextWeek = new Date(today);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            return mealDate >= today && mealDate <= nextWeek;
+          }
+          return true;
+        });
+      }
       if (searchKeyword) {
         filteredMeals = filteredMeals.filter(m =>
           m.title.toLowerCase().includes(searchKeyword.toLowerCase())
         );
       }
 
+      filteredMeals.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
       setMeals(filteredMeals);
       setLoading(false);
-    }, 500);
+    }, 300);
   };
 
   const handleRefresh = () => {
@@ -61,20 +87,22 @@ const SquarePage: React.FC = () => {
 
   const quickFilters = [
     { label: '今晚有空', value: 'tonight' },
-    { label: 'AA饭局', value: 'aa' },
-    { label: '请客大方', value: 'treat' },
-    { label: '仅限女生', value: 'female' }
+    { label: '明天', value: 'tomorrow' },
+    { label: '本周', value: 'week' },
+    { label: 'AA饭局', value: 'aa' }
   ];
 
   const handleQuickFilter = (value: string) => {
     if (value === 'aa') {
-      setFilter({ ...filter, paymentType: 'aa' });
-    } else if (value === 'treat') {
-      setFilter({ ...filter, paymentType: 'treat' });
-    } else if (value === 'female') {
-      setMeals(mockMeals.filter(m => m.isFemaleOnly));
+      setFilter({ ...filter, paymentType: 'aa', dateTime: undefined });
+    } else if (value === 'tonight') {
+      setFilter({ ...filter, dateTime: 'tonight', paymentType: undefined });
+    } else if (value === 'tomorrow') {
+      setFilter({ ...filter, dateTime: 'tomorrow', paymentType: undefined });
+    } else if (value === 'week') {
+      setFilter({ ...filter, dateTime: 'week', paymentType: undefined });
     } else {
-      setMeals(mockMeals);
+      setFilter({});
     }
   };
 

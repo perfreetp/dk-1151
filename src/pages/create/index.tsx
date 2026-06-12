@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Input, ScrollView, Switch } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { BUSINESS_DISTRICTS, CUISINES, TABOO_TOPICS, CHAT_PREFERENCES } from '../../types';
+import { Meal, BUSINESS_DISTRICTS, CUISINES, TABOO_TOPICS, CHAT_PREFERENCES } from '../../types';
+import { mealStore, chatStore, userStore, generateId } from '../../utils/store';
 import styles from './index.module.scss';
 
 const CreatePage: React.FC = () => {
@@ -41,6 +42,30 @@ const CreatePage: React.FC = () => {
     }
 
     Taro.showLoading({ title: '发布中...' });
+
+    const currentUser = userStore.getCurrentUser();
+    const newMeal: Meal = {
+      id: generateId(),
+      title,
+      creator: currentUser,
+      participants: [currentUser],
+      maxParticipants: parseInt(maxParticipants) || 4,
+      cuisine,
+      businessDistrict: district,
+      dateTime: `${date} ${time}`,
+      deadline: date,
+      budget: parseInt(budget),
+      paymentType,
+      allow拼桌,
+      chatPreference: chatPreference || '都可以',
+      tabooTopics,
+      isFemaleOnly,
+      status: 'recruiting',
+      createdAt: new Date().toISOString()
+    };
+
+    mealStore.add(newMeal);
+
     setTimeout(() => {
       Taro.hideLoading();
       Taro.showToast({ title: '发布成功！', icon: 'success' });

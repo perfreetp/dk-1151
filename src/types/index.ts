@@ -7,6 +7,7 @@ export interface Meal {
   cuisine: string;
   businessDistrict: string;
   dateTime: string;
+  originalDateTime?: string;
   deadline: string;
   budget: number;
   paymentType: 'aa' | 'treat' | 'split';
@@ -19,6 +20,7 @@ export interface Meal {
   menuVotes?: MenuVote[];
   checkIns?: CheckIn[];
   comments?: Comment[];
+  ratings?: { odinnerId: string; rating: number; comment: string; tags: string[] }[];
   createdAt: string;
 }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal } from '../../types';
-import { mockMeals, mockUsers } from '../../data/mock';
+import { mealStore } from '../../utils/store';
 import styles from './index.module.scss';
 
 const MatchPage: React.FC = () => {
@@ -14,7 +14,12 @@ const MatchPage: React.FC = () => {
   });
 
   useEffect(() => {
-    const matchData = mockMeals.map(meal => ({
+    loadMatches();
+  }, []);
+
+  const loadMatches = () => {
+    const allMeals = mealStore.getAll();
+    const matchData = allMeals.map(meal => ({
       ...meal,
       matchScore: Math.floor(Math.random() * 20) + 80
     })).sort((a, b) => b.matchScore - a.matchScore);
@@ -25,11 +30,11 @@ const MatchPage: React.FC = () => {
       today: Math.floor(Math.random() * 3) + 1,
       new: Math.floor(Math.random() * 5) + 2
     });
-  }, []);
+  };
 
   const handleChat = (meal: Meal) => {
     Taro.navigateTo({
-      url: `/pages/chat/index?mealId=${meal.id}`
+      url: `/pages/chatroom/index?mealId=${meal.id}`
     });
   };
 

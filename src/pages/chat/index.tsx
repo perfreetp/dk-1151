@@ -1,17 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { Chat } from '../../types';
-import { mockChats } from '../../data/mock';
+import { Chat, Meal } from '../../types';
+import { chatStore, mealStore } from '../../utils/store';
 import styles from './index.module.scss';
 
 const ChatPage: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'confirmed'>('all');
+  const [mealTitles, setMealTitles] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setChats(mockChats);
+    loadChats();
   }, []);
+
+  const loadChats = () => {
+    const allChats = chatStore.getAll();
+    setChats(allChats);
+
+    const titles: Record<string, string> = {};
+    allChats.forEach(chat => {
+      const meal = mealStore.getById(chat.mealId);
+      if (meal) {
+        titles[chat.id] = meal.title;
+      }
+    });
+    setMealTitles(titles);
+  };
 
   const handleEmergency = () => {
     Taro.showModal({
@@ -31,7 +46,7 @@ const ChatPage: React.FC = () => {
 
   const handleChatClick = (chat: Chat) => {
     Taro.navigateTo({
-      url: `/pages/chat/index?chatId=${chat.id}`
+      url: `/pages/chatroom/index?chatId=${chat.id}`
     });
   };
 
@@ -44,9 +59,9 @@ const ChatPage: React.FC = () => {
       cancelText: '取消',
       success: (res) => {
         if (res.confirm) {
-          setChats(chats.map(c => 
-            c.id === chat.id ? { ...c, status: 'confirmed' } : c
-          ));
+          chatStore.update(chat.id, { status: 'confirmed' });
+          mealStore.update(chat.mealId, { status: 'confirmed' });
+          loadChats();
           Taro.showToast({ title: '已确认', icon: 'success' });
         }
       }
@@ -55,7 +70,81 @@ const ChatPage: React.FC = () => {
 
   const handleReschedule = (chat: Chat, e: any) => {
     e.stopPropagation();
-    Taro.showToast({ title: '改期功能开发中', icon: 'none' });
+
+    Taro.showModal({
+      title: '改期',
+      content: '请选择新的用餐日期',
+      editable: true,
+      placeholderText: '格式: 2026-06-20',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const newDate = res.content;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+            Taro.showToast({ title: '日期格式不正确，请使用 YYYY-MM-DD 格式', icon: 'none' });
+            return;
+          }
+
+          const meal = mealStore.getById(chat.mealId);
+          if (meal) {
+            const originalDateTime = meal.originalDateTime || meal.dateTime;
+            const newDateTime = `${newDate} 18:00`;
+
+            mealStore.update(chat.mealId, {
+              originalDateTime,
+              dateTime: newDateTime
+            });
+
+            chatStore.update(chat.id, {
+              lastMessage: {
+                id: `sys_${Date.now()}`,
+                senderId: 'system',
+                content: `已将饭局改期至 ${newDateTime}`,
+                type: 'system',
+                createdAt: new Date().toISOString()
+              }
+            });
+
+            loadChats();
+            Taro.showToast({ title: '改期成功', icon: 'success' });
+          }
+        }
+      }
+    });
+  };
+
+  const handleCancelReschedule = (chat: Chat, e: any) => {
+    e.stopPropagation();
+
+    Taro.showModal({
+      title: '取消改期',
+      content: '确定要取消改期，恢复原定时间吗？',
+      confirmText: '确定',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          const meal = mealStore.getById(chat.mealId);
+          if (meal && meal.originalDateTime) {
+            mealStore.update(chat.mealId, {
+              dateTime: meal.originalDateTime,
+              originalDateTime: undefined
+            });
+
+            chatStore.update(chat.id, {
+              lastMessage: {
+                id: `sys_${Date.now()}`,
+                senderId: 'system',
+                content: `已取消改期，恢复原定时间 ${meal.originalDateTime}`,
+                type: 'system',
+                createdAt: new Date().toISOString()
+              }
+            });
+
+            loadChats();
+            Taro.showToast({ title: '已恢复原定时间', icon: 'success' });
+          }
+        }
+      }
+    });
   };
 
   const filteredChats = () => {
@@ -114,75 +203,100 @@ const ChatPage: React.FC = () => {
 
         {filteredChats().length > 0 ? (
           <View className={styles.chatList}>
-            {filteredChats().map((chat) => (
-              <View
-                key={chat.id}
-                className={styles.chatCard}
-                onClick={() => handleChatClick(chat)}
-              >
-                <View className={styles.chatHeader}>
-                  <View className={styles.avatarWrapper}>
-                    <Image
-                      src={chat.participants[0].avatar}
-                      className={styles.avatar}
-                      mode='aspectFill'
-                    />
-                    <View className={styles.statusDot} />
-                  </View>
-                  <View className={styles.userInfo}>
-                    <Text className={styles.userName}>{chat.participants[0].name}</Text>
-                    <Text className={styles.mealTitle}>日料控集合</Text>
-                  </View>
-                  <View
-                    className={`${styles.statusTag} ${
-                      chat.status === 'pending' ? styles.statusPending : styles.statusConfirmed
-                    }`}
-                  >
-                    <Text>{chat.status === 'pending' ? '待确认' : '已确认'}</Text>
-                  </View>
-                </View>
+            {filteredChats().map((chat) => {
+              const meal = mealStore.getById(chat.mealId);
+              const hasRescheduled = meal?.originalDateTime !== undefined;
 
-                <View className={styles.chatContent}>
-                  <Text className={styles.lastMessage}>
-                    {chat.lastMessage?.content}
-                  </Text>
-                  <View className={styles.messageMeta}>
-                    <Text className={styles.time}>{chat.lastMessage?.createdAt}</Text>
-                    <View className={styles.unreadBadge}>
-                      <Text className={styles.unreadText}>2</Text>
+              return (
+                <View
+                  key={chat.id}
+                  className={styles.chatCard}
+                  onClick={() => handleChatClick(chat)}
+                >
+                  <View className={styles.chatHeader}>
+                    <View className={styles.avatarWrapper}>
+                      <Image
+                        src={chat.participants[1]?.avatar || chat.participants[0].avatar}
+                        className={styles.avatar}
+                        mode='aspectFill'
+                      />
+                      <View className={styles.statusDot} />
                     </View>
-                  </View>
-                </View>
-
-                <View className={styles.chatFooter}>
-                  {chat.status === 'pending' && (
-                    <>
-                      <View
-                        className={`${styles.actionButton} ${styles.confirmButton}`}
-                        onClick={(e) => handleConfirm(chat, e)}
-                      >
-                        <Text className={styles.confirmText}>确认参加</Text>
-                      </View>
-                      <View
-                        className={`${styles.actionButton} ${styles.rescheduleButton}`}
-                        onClick={(e) => handleReschedule(chat, e)}
-                      >
-                        <Text className={styles.rescheduleText}>改期</Text>
-                      </View>
-                    </>
-                  )}
-                  {chat.status === 'confirmed' && (
+                    <View className={styles.userInfo}>
+                      <Text className={styles.userName}>
+                        {chat.participants[1]?.name || chat.participants[0].name}
+                      </Text>
+                      <Text className={styles.mealTitle}>{mealTitles[chat.id] || '饭局'}</Text>
+                    </View>
                     <View
-                      className={`${styles.actionButton} ${styles.confirmButton}`}
-                      style={{ background: $color-info }}
-                      onClick={() => handleChatClick(chat)}
+                      className={`${styles.statusTag} ${
+                        chat.status === 'pending' ? styles.statusPending : styles.statusConfirmed
+                      }`}
                     >
-                      <Text className={styles.confirmText}>进入聊天</Text>
+                      <Text>{chat.status === 'pending' ? '待确认' : '已确认'}</Text>
+                    </View>
+                  </View>
+
+                  <View className={styles.chatContent}>
+                    <Text className={styles.lastMessage}>
+                      {chat.lastMessage?.content}
+                    </Text>
+                    <View className={styles.messageMeta}>
+                      <Text className={styles.time}>{chat.lastMessage?.createdAt}</Text>
+                      <View className={styles.unreadBadge}>
+                        <Text className={styles.unreadText}>2</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {hasRescheduled && meal && (
+                    <View className={styles.rescheduleNotice}>
+                      <Text className={styles.rescheduleText}>
+                        已改期至: {meal.dateTime}
+                      </Text>
                     </View>
                   )}
+
+                  <View className={styles.chatFooter}>
+                    {chat.status === 'pending' && (
+                      <>
+                        <View
+                          className={`${styles.actionButton} ${styles.confirmButton}`}
+                          onClick={(e) => handleConfirm(chat, e)}
+                        >
+                          <Text className={styles.confirmText}>确认参加</Text>
+                        </View>
+                        <View
+                          className={`${styles.actionButton} ${styles.rescheduleButton}`}
+                          onClick={(e) => handleReschedule(chat, e)}
+                        >
+                          <Text className={styles.rescheduleText}>改期</Text>
+                        </View>
+                      </>
+                    )}
+                    {chat.status === 'confirmed' && (
+                      <>
+                        {hasRescheduled && (
+                          <View
+                            className={`${styles.actionButton} ${styles.cancelRescheduleButton}`}
+                            onClick={(e) => handleCancelReschedule(chat, e)}
+                          >
+                            <Text className={styles.cancelRescheduleText}>取消改期</Text>
+                          </View>
+                        )}
+                        <View
+                          className={`${styles.actionButton} ${styles.confirmButton}`}
+                          style={{ background: '#74b9ff', flex: hasRescheduled ? 1 : 2 }}
+                          onClick={() => handleChatClick(chat)}
+                        >
+                          <Text className={styles.confirmText}>进入聊天</Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : (
           <View className={styles.emptyState}>

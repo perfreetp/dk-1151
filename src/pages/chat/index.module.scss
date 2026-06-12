@@ -265,6 +265,30 @@
   color: $color-text-secondary;
 }
 
+.cancelRescheduleButton {
+  background: rgba($color-warning, 0.1);
+  border: 2rpx solid $color-warning;
+}
+
+.cancelRescheduleText {
+  font-size: $font-size-sm;
+  color: $color-warning;
+  font-weight: $font-weight-medium;
+}
+
+.rescheduleNotice {
+  background: rgba($color-warning, 0.1);
+  border-radius: $radius-sm;
+  padding: $spacing-sm $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.rescheduleText {
+  font-size: $font-size-sm;
+  color: $color-warning;
+  font-weight: $font-weight-medium;
+}
+
 .emptyState {
   display: flex;
   flex-direction: column;
