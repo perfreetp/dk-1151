@@ -276,6 +276,12 @@ const ChatPage: React.FC = () => {
                     )}
                     {chat.status === 'confirmed' && (
                       <>
+                        <View
+                          className={`${styles.actionButton} ${styles.rescheduleButton}`}
+                          onClick={(e) => handleReschedule(chat, e)}
+                        >
+                          <Text className={styles.rescheduleText}>改期</Text>
+                        </View>
                         {hasRescheduled && (
                           <View
                             className={`${styles.actionButton} ${styles.cancelRescheduleButton}`}

@@ -30,13 +30,33 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
     onFilterChange(newFilter);
   };
 
-  const getDisplayText = (type: string) => {
-    const value = filter[type as keyof Filter];
-    if (!value) return type === 'paymentType' ? '付费方式' : type === 'businessDistrict' ? '商圈' : type === 'cuisine' ? '菜系' : type;
-    return value as string;
+  const getDateOptions = () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const formatDate = (date: Date) => {
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${date.getFullYear()}-${month}-${day}`;
+    };
+
+    const formatDisplay = (date: Date) => {
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${month}月${day}日`;
+    };
+
+    return [
+      { value: 'today', label: `今天(${formatDisplay(today)})` },
+      { value: 'tomorrow', label: `明天(${formatDisplay(tomorrow)})` },
+      { value: formatDate(today), label: formatDisplay(today) },
+      { value: formatDate(tomorrow), label: formatDisplay(tomorrow) }
+    ];
   };
 
   const filters = [
+    { key: 'dateTime', label: '用餐时间' },
     { key: 'businessDistrict', label: '商圈' },
     { key: 'cuisine', label: '菜系' },
     { key: 'paymentType', label: '付费' }
@@ -73,6 +93,21 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, onFilterChange }) => {
                 >
                   <Text className={styles.optionText}>不限</Text>
                 </View>
+                
+                {item.key === 'dateTime' && (
+                  <>
+                    {getDateOptions().map((option) => (
+                      <View
+                        key={option.value}
+                        className={styles.option}
+                        onClick={() => handleOptionSelect(item.key, option.value)}
+                      >
+                        <Text className={styles.optionText}>{option.label}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+
                 {item.key === 'businessDistrict' &&
                   ['国贸CBD', '三里屯', '中关村', '望京', '五道口', '西单'].map((option) => (
                     <View

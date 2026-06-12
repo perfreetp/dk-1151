@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal } from '../../types';
-import { mealStore } from '../../utils/store';
+import { mealStore, chatStore, generateId } from '../../utils/store';
 import styles from './index.module.scss';
 
 const MatchPage: React.FC = () => {
@@ -33,8 +33,23 @@ const MatchPage: React.FC = () => {
   };
 
   const handleChat = (meal: Meal) => {
+    let existingChat = chatStore.getAll().find(c => c.mealId === meal.id);
+    
+    if (!existingChat) {
+      const newChat = {
+        id: generateId(),
+        mealId: meal.id,
+        participants: [meal.creator],
+        messages: [],
+        status: 'pending' as const,
+        updatedAt: new Date().toISOString()
+      };
+      chatStore.add(newChat);
+      existingChat = newChat;
+    }
+    
     Taro.navigateTo({
-      url: `/pages/chatroom/index?mealId=${meal.id}`
+      url: `/pages/chatroom/index?chatId=${existingChat.id}`
     });
   };
 

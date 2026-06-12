@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal } from '../../types';
-import { mockMeals } from '../../data/mock';
+import { mealStore, chatStore, generateId } from '../../utils/store';
 import styles from './index.module.scss';
 
 const DetailPage: React.FC = () => {
@@ -12,7 +12,7 @@ const DetailPage: React.FC = () => {
   useEffect(() => {
     const { id } = Taro.getCurrentInstance().router?.params || {};
     if (id) {
-      const foundMeal = mockMeals.find(m => m.id === id);
+      const foundMeal = mealStore.getById(id);
       setMeal(foundMeal || null);
     }
     setLoading(false);
@@ -24,8 +24,23 @@ const DetailPage: React.FC = () => {
 
   const handleChat = () => {
     if (meal) {
+      let existingChat = chatStore.getAll().find(c => c.mealId === meal.id);
+      
+      if (!existingChat) {
+        const newChat = {
+          id: generateId(),
+          mealId: meal.id,
+          participants: [meal.creator],
+          messages: [],
+          status: 'pending' as const,
+          updatedAt: new Date().toISOString()
+        };
+        chatStore.add(newChat);
+        existingChat = newChat;
+      }
+      
       Taro.navigateTo({
-        url: `/pages/chat/index?mealId=${meal.id}`
+        url: `/pages/chatroom/index?chatId=${existingChat.id}`
       });
     }
   };

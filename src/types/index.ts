@@ -16,6 +16,7 @@ export interface Meal {
   tabooTopics: string[];
   isFemaleOnly: boolean;
   status: 'recruiting' | 'confirmed' | 'completed' | 'cancelled';
+  cancelledType?: 'self' | 'noShow';
   restaurant?: Restaurant;
   menuVotes?: MenuVote[];
   checkIns?: CheckIn[];

@@ -35,27 +35,28 @@ const SquarePage: React.FC = () => {
         filteredMeals = filteredMeals.filter(m => m.paymentType === filter.paymentType);
       }
       if (filter.dateTime) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
         filteredMeals = filteredMeals.filter(m => {
           const mealDate = new Date(m.dateTime);
-          mealDate.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-          if (filter.dateTime === 'tonight') {
-            const tonight = new Date(today);
-            tonight.setHours(23, 59, 59, 999);
-            return mealDate.getTime() === today.getTime() && mealDate <= tonight;
+          if (filter.dateTime === 'today') {
+            const todayEnd = new Date(today);
+            todayEnd.setHours(23, 59, 59, 999);
+            return mealDate >= today && mealDate <= todayEnd;
           } else if (filter.dateTime === 'tomorrow') {
-            return mealDate.getTime() === tomorrow.getTime();
-          } else if (filter.dateTime === 'week') {
-            const nextWeek = new Date(today);
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            return mealDate >= today && mealDate <= nextWeek;
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowEnd = new Date(tomorrow);
+            tomorrowEnd.setHours(23, 59, 59, 999);
+            return mealDate >= tomorrow && mealDate <= tomorrowEnd;
+          } else {
+            const targetDate = new Date(filter.dateTime as string);
+            targetDate.setHours(0, 0, 0, 0);
+            const targetEnd = new Date(targetDate);
+            targetEnd.setHours(23, 59, 59, 999);
+            return mealDate >= targetDate && mealDate <= targetEnd;
           }
-          return true;
         });
       }
       if (searchKeyword) {

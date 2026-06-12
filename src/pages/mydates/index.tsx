@@ -6,12 +6,13 @@ import { mealStore } from '../../utils/store';
 import styles from './index.module.scss';
 
 const MyDatesPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'recruiting' | 'confirmed' | 'completed'>('recruiting');
+  const [activeTab, setActiveTab] = useState<'recruiting' | 'confirmed' | 'completed' | 'cancelled'>('recruiting');
   const [myMeals, setMyMeals] = useState<Meal[]>([]);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
     cancelled: 0,
+    noShow: 0,
     rating: 4.8
   });
 
@@ -24,7 +25,8 @@ const MyDatesPage: React.FC = () => {
     setMyMeals(meals);
 
     const completedMeals = meals.filter(m => m.status === 'completed').length;
-    const cancelledMeals = meals.filter(m => m.status === 'cancelled').length;
+    const cancelledMeals = meals.filter(m => m.status === 'cancelled' && m.cancelledType === 'self').length;
+    const noShowMeals = meals.filter(m => m.status === 'cancelled' && m.cancelledType === 'noShow').length;
 
     let totalRating = 0;
     let ratingCount = 0;
@@ -42,6 +44,7 @@ const MyDatesPage: React.FC = () => {
       total: meals.length,
       completed: completedMeals,
       cancelled: cancelledMeals,
+      noShow: noShowMeals,
       rating: parseFloat(avgRating)
     });
   };
@@ -63,13 +66,14 @@ const MyDatesPage: React.FC = () => {
   const handleRate = (meal: Meal) => {
     Taro.showModal({
       title: '评价饭局',
-      content: '请选择评分（1-5星）',
+      content: '请输入评价（可写1-5数字评分）',
       editable: true,
       placeholderText: '写下你的评价...',
       success: (res) => {
         if (res.confirm && res.content) {
-          const rating = parseInt(res.content.split('星')[0]) || 5;
-          const comment = res.content.replace(/^[1-5]星/, '').trim() || '好评';
+          const match = res.content.match(/^([1-5])/);
+          const rating = match ? parseInt(match[1]) : 5;
+          const comment = res.content.replace(/^[1-5]/, '').trim() || '好评';
 
           const newRating = {
             odinnerId: meal.creator.id,
@@ -96,7 +100,7 @@ const MyDatesPage: React.FC = () => {
       cancelText: '再想想',
       success: (res) => {
         if (res.confirm) {
-          mealStore.update(meal.id, { status: 'cancelled' });
+          mealStore.update(meal.id, { status: 'cancelled', cancelledType: 'self' });
           loadMyMeals();
           Taro.showToast({ title: '已取消', icon: 'success' });
         }
@@ -112,7 +116,7 @@ const MyDatesPage: React.FC = () => {
       cancelText: '取消',
       success: (res) => {
         if (res.confirm) {
-          mealStore.update(meal.id, { status: 'cancelled' });
+          mealStore.update(meal.id, { status: 'cancelled', cancelledType: 'noShow' });
           loadMyMeals();
           Taro.showToast({ title: '已标记爽约', icon: 'success' });
         }
@@ -120,7 +124,7 @@ const MyDatesPage: React.FC = () => {
     });
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, cancelledType?: string) => {
     switch (status) {
       case 'recruiting':
         return '招募中';
@@ -129,13 +133,13 @@ const MyDatesPage: React.FC = () => {
       case 'completed':
         return '已完成';
       case 'cancelled':
-        return '已取消';
+        return cancelledType === 'noShow' ? '已爽约' : '已取消';
       default:
         return status;
     }
   };
 
-  const getStatusClass = (status: string) => {
+  const getStatusClass = (status: string, cancelledType?: string) => {
     switch (status) {
       case 'recruiting':
         return styles.statusRecruiting;
@@ -144,7 +148,7 @@ const MyDatesPage: React.FC = () => {
       case 'completed':
         return styles.statusCompleted;
       case 'cancelled':
-        return styles.statusCancelled;
+        return cancelledType === 'noShow' ? styles.statusNoShow : styles.statusCancelled;
       default:
         return '';
     }
@@ -155,14 +159,18 @@ const MyDatesPage: React.FC = () => {
       return myMeals.filter(m => m.status === 'recruiting');
     } else if (activeTab === 'confirmed') {
       return myMeals.filter(m => m.status === 'confirmed');
-    } else {
+    } else if (activeTab === 'completed') {
       return myMeals.filter(m => m.status === 'completed');
+    } else if (activeTab === 'cancelled') {
+      return myMeals.filter(m => m.status === 'cancelled');
     }
+    return myMeals;
   };
 
   const recruitingCount = myMeals.filter(m => m.status === 'recruiting').length;
   const confirmedCount = myMeals.filter(m => m.status === 'confirmed').length;
   const completedCount = myMeals.filter(m => m.status === 'completed').length;
+  const cancelledCount = myMeals.filter(m => m.status === 'cancelled').length;
 
   return (
     <View className={styles.container}>
@@ -183,7 +191,7 @@ const MyDatesPage: React.FC = () => {
             <Text className={styles.statLabel}>已完成</Text>
           </View>
           <View className={styles.statItem}>
-            <Text className={styles.statNumber}>{stats.cancelled}</Text>
+            <Text className={styles.statNumber}>{stats.noShow}</Text>
             <Text className={styles.statLabel}>爽约</Text>
           </View>
           <View className={styles.statItem}>
@@ -228,6 +236,17 @@ const MyDatesPage: React.FC = () => {
               </View>
             )}
           </View>
+          <View
+            className={`${styles.tab} ${activeTab === 'cancelled' ? styles.active : ''}`}
+            onClick={() => setActiveTab('cancelled')}
+          >
+            <Text className={styles.tabText}>已取消</Text>
+            {cancelledCount > 0 && (
+              <View className={styles.tabBadge}>
+                <Text className={styles.tabBadgeText}>{cancelledCount}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {getFilteredMeals().length > 0 ? (
@@ -236,8 +255,8 @@ const MyDatesPage: React.FC = () => {
               <View key={meal.id} className={styles.mealCard}>
                 <View className={styles.cardHeader}>
                   <Text className={styles.mealTitle}>{meal.title}</Text>
-                  <View className={`${styles.statusBadge} ${getStatusClass(meal.status)}`}>
-                    <Text>{getStatusText(meal.status)}</Text>
+                  <View className={`${styles.statusBadge} ${getStatusClass(meal.status, meal.cancelledType)}`}>
+                    <Text>{getStatusText(meal.status, meal.cancelledType)}</Text>
                   </View>
                 </View>
 
@@ -284,6 +303,12 @@ const MyDatesPage: React.FC = () => {
                         <Text className={styles.checkinText}>到店打卡</Text>
                       </View>
                       <View
+                        className={`${styles.actionButton} ${styles.noShowButton}`}
+                        onClick={() => handleMarkNoShow(meal)}
+                      >
+                        <Text className={styles.noShowText}>标记爽约</Text>
+                      </View>
+                      <View
                         className={`${styles.actionButton} ${styles.rateButton}`}
                         onClick={() => handleRate(meal)}
                       >
@@ -303,14 +328,13 @@ const MyDatesPage: React.FC = () => {
                     </View>
                   )}
                   {meal.status === 'recruiting' && (
-                    <>
-                      <View
-                        className={`${styles.actionButton} ${styles.cancelButton}`}
-                        onClick={() => handleCancel(meal)}
-                      >
-                        <Text className={styles.cancelText}>取消</Text>
-                      </View>
-                    </>
+                    <View
+                      className={`${styles.actionButton} ${styles.cancelButton}`}
+                      style={{ flex: 1 }}
+                      onClick={() => handleCancel(meal)}
+                    >
+                      <Text className={styles.cancelText}>取消</Text>
+                    </View>
                   )}
                 </View>
               </View>
