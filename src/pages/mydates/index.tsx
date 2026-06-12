@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal } from '../../types';
-import { mealStore } from '../../utils/store';
+import { mealStore, userStore } from '../../utils/store';
 import styles from './index.module.scss';
 
 const MyDatesPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'recruiting' | 'confirmed' | 'completed' | 'cancelled'>('recruiting');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'pending' | 'past'>('upcoming');
   const [myMeals, setMyMeals] = useState<Meal[]>([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -21,16 +21,23 @@ const MyDatesPage: React.FC = () => {
   }, []);
 
   const loadMyMeals = () => {
-    const meals = mealStore.getAll();
-    setMyMeals(meals);
+    const currentUser = userStore.getCurrentUser();
+    const allMeals = mealStore.getAll();
+    
+    const userMeals = allMeals.filter(meal => 
+      meal.creator.id === currentUser.id || 
+      meal.participants.some(p => p.id === currentUser.id)
+    );
+    
+    setMyMeals(userMeals);
 
-    const completedMeals = meals.filter(m => m.status === 'completed').length;
-    const cancelledMeals = meals.filter(m => m.status === 'cancelled' && m.cancelledType === 'self').length;
-    const noShowMeals = meals.filter(m => m.status === 'cancelled' && m.cancelledType === 'noShow').length;
+    const completedMeals = userMeals.filter(m => m.status === 'completed').length;
+    const cancelledMeals = userMeals.filter(m => m.status === 'cancelled' && m.cancelledType === 'self').length;
+    const noShowMeals = userMeals.filter(m => m.status === 'cancelled' && m.cancelledType === 'noShow').length;
 
     let totalRating = 0;
     let ratingCount = 0;
-    meals.forEach(meal => {
+    userMeals.forEach(meal => {
       if (meal.ratings && meal.ratings.length > 0) {
         meal.ratings.forEach(r => {
           totalRating += r.rating;
@@ -41,11 +48,47 @@ const MyDatesPage: React.FC = () => {
     const avgRating = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : '4.8';
 
     setStats({
-      total: meals.length,
+      total: userMeals.length,
       completed: completedMeals,
       cancelled: cancelledMeals,
       noShow: noShowMeals,
       rating: parseFloat(avgRating)
+    });
+  };
+
+  const getFilteredMeals = () => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (activeTab === 'upcoming') {
+      return myMeals.filter(m => {
+        if (m.status === 'cancelled' || m.status === 'completed') return false;
+        const mealDate = new Date(m.dateTime);
+        return mealDate >= today;
+      }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+    } else if (activeTab === 'pending') {
+      return myMeals.filter(m => m.status === 'recruiting').sort((a, b) => 
+        new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
+      );
+    } else {
+      return myMeals.filter(m => m.status === 'completed' || m.status === 'cancelled').sort((a, b) => 
+        new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
+      );
+    }
+  };
+
+  const getOtherParticipants = (meal: Meal) => {
+    const currentUser = userStore.getCurrentUser();
+    const others = meal.participants.filter(p => p.id !== currentUser.id);
+    return others.length > 0 ? others : meal.participants;
+  };
+
+  const handleViewDetail = (meal: Meal) => {
+    Taro.navigateTo({
+      url: `/pages/detail/index?id=${meal.id}`
     });
   };
 
@@ -93,14 +136,22 @@ const MyDatesPage: React.FC = () => {
   };
 
   const handleCancel = (meal: Meal) => {
+    const currentUser = userStore.getCurrentUser();
+    const isCreator = meal.creator.id === currentUser.id;
+
     Taro.showModal({
-      title: '取消饭局',
-      content: '确定要取消这个饭局吗？',
-      confirmText: '确定取消',
+      title: isCreator ? '取消饭局' : '退出饭局',
+      content: isCreator ? '确定要取消这个饭局吗？' : '确定要退出这个饭局吗？',
+      confirmText: '确定',
       cancelText: '再想想',
       success: (res) => {
         if (res.confirm) {
-          mealStore.update(meal.id, { status: 'cancelled', cancelledType: 'self' });
+          if (isCreator) {
+            mealStore.update(meal.id, { status: 'cancelled', cancelledType: 'self' });
+          } else {
+            const updatedParticipants = meal.participants.filter(p => p.id !== currentUser.id);
+            mealStore.update(meal.id, { participants: updatedParticipants });
+          }
           loadMyMeals();
           Taro.showToast({ title: '已取消', icon: 'success' });
         }
@@ -127,7 +178,7 @@ const MyDatesPage: React.FC = () => {
   const getStatusText = (status: string, cancelledType?: string) => {
     switch (status) {
       case 'recruiting':
-        return '招募中';
+        return '待确认';
       case 'confirmed':
         return '已确认';
       case 'completed':
@@ -142,7 +193,7 @@ const MyDatesPage: React.FC = () => {
   const getStatusClass = (status: string, cancelledType?: string) => {
     switch (status) {
       case 'recruiting':
-        return styles.statusRecruiting;
+        return styles.statusPending;
       case 'confirmed':
         return styles.statusConfirmed;
       case 'completed':
@@ -154,23 +205,29 @@ const MyDatesPage: React.FC = () => {
     }
   };
 
-  const getFilteredMeals = () => {
-    if (activeTab === 'recruiting') {
-      return myMeals.filter(m => m.status === 'recruiting');
-    } else if (activeTab === 'confirmed') {
-      return myMeals.filter(m => m.status === 'confirmed');
-    } else if (activeTab === 'completed') {
-      return myMeals.filter(m => m.status === 'completed');
-    } else if (activeTab === 'cancelled') {
-      return myMeals.filter(m => m.status === 'cancelled');
+  const getPaymentTypeText = (type: string) => {
+    switch (type) {
+      case 'aa':
+        return 'AA';
+      case 'treat':
+        return '请客';
+      case 'split':
+        return '拼单';
+      default:
+        return type;
     }
-    return myMeals;
   };
 
-  const recruitingCount = myMeals.filter(m => m.status === 'recruiting').length;
-  const confirmedCount = myMeals.filter(m => m.status === 'confirmed').length;
-  const completedCount = myMeals.filter(m => m.status === 'completed').length;
-  const cancelledCount = myMeals.filter(m => m.status === 'cancelled').length;
+  const upcomingCount = myMeals.filter(m => {
+    if (m.status === 'cancelled' || m.status === 'completed') return false;
+    const mealDate = new Date(m.dateTime);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return mealDate >= today;
+  }).length;
+
+  const pendingCount = myMeals.filter(m => m.status === 'recruiting').length;
+  const pastCount = myMeals.filter(m => m.status === 'completed' || m.status === 'cancelled').length;
 
   return (
     <View className={styles.container}>
@@ -179,7 +236,7 @@ const MyDatesPage: React.FC = () => {
           <Text className={styles.titleIcon}>📅</Text>
           我的饭约
         </Text>
-        <Text className={styles.subtitle}>管理你的饭局，参与美好聚餐</Text>
+        <Text className={styles.subtitle}>行程管理，美好聚餐</Text>
 
         <View className={styles.stats}>
           <View className={styles.statItem}>
@@ -204,46 +261,35 @@ const MyDatesPage: React.FC = () => {
       <View className={styles.content}>
         <View className={styles.tabBar}>
           <View
-            className={`${styles.tab} ${activeTab === 'recruiting' ? styles.active : ''}`}
-            onClick={() => setActiveTab('recruiting')}
+            className={`${styles.tab} ${activeTab === 'upcoming' ? styles.active : ''}`}
+            onClick={() => setActiveTab('upcoming')}
           >
-            <Text className={styles.tabText}>待参与</Text>
-            {recruitingCount > 0 && (
+            <Text className={styles.tabText}>即将开始</Text>
+            {upcomingCount > 0 && (
               <View className={styles.tabBadge}>
-                <Text className={styles.tabBadgeText}>{recruitingCount}</Text>
+                <Text className={styles.tabBadgeText}>{upcomingCount}</Text>
               </View>
             )}
           </View>
           <View
-            className={`${styles.tab} ${activeTab === 'confirmed' ? styles.active : ''}`}
-            onClick={() => setActiveTab('confirmed')}
+            className={`${styles.tab} ${activeTab === 'pending' ? styles.active : ''}`}
+            onClick={() => setActiveTab('pending')}
           >
-            <Text className={styles.tabText}>已确认</Text>
-            {confirmedCount > 0 && (
+            <Text className={styles.tabText}>待确认</Text>
+            {pendingCount > 0 && (
               <View className={styles.tabBadge}>
-                <Text className={styles.tabBadgeText}>{confirmedCount}</Text>
+                <Text className={styles.tabBadgeText}>{pendingCount}</Text>
               </View>
             )}
           </View>
           <View
-            className={`${styles.tab} ${activeTab === 'completed' ? styles.active : ''}`}
-            onClick={() => setActiveTab('completed')}
+            className={`${styles.tab} ${activeTab === 'past' ? styles.active : ''}`}
+            onClick={() => setActiveTab('past')}
           >
-            <Text className={styles.tabText}>已完成</Text>
-            {completedCount > 0 && (
+            <Text className={styles.tabText}>已结束</Text>
+            {pastCount > 0 && (
               <View className={styles.tabBadge}>
-                <Text className={styles.tabBadgeText}>{completedCount}</Text>
-              </View>
-            )}
-          </View>
-          <View
-            className={`${styles.tab} ${activeTab === 'cancelled' ? styles.active : ''}`}
-            onClick={() => setActiveTab('cancelled')}
-          >
-            <Text className={styles.tabText}>已取消</Text>
-            {cancelledCount > 0 && (
-              <View className={styles.tabBadge}>
-                <Text className={styles.tabBadgeText}>{cancelledCount}</Text>
+                <Text className={styles.tabBadgeText}>{pastCount}</Text>
               </View>
             )}
           </View>
@@ -251,103 +297,120 @@ const MyDatesPage: React.FC = () => {
 
         {getFilteredMeals().length > 0 ? (
           <View className={styles.mealList}>
-            {getFilteredMeals().map((meal) => (
-              <View key={meal.id} className={styles.mealCard}>
-                <View className={styles.cardHeader}>
-                  <Text className={styles.mealTitle}>{meal.title}</Text>
-                  <View className={`${styles.statusBadge} ${getStatusClass(meal.status, meal.cancelledType)}`}>
-                    <Text>{getStatusText(meal.status, meal.cancelledType)}</Text>
-                  </View>
-                </View>
+            {getFilteredMeals().map((meal) => {
+              const otherParticipants = getOtherParticipants(meal);
+              const otherParticipant = otherParticipants[0];
 
-                <View className={styles.mealInfo}>
-                  <View className={styles.infoTag}>
-                    <Text className={styles.infoText}>{meal.cuisine}</Text>
+              return (
+                <View key={meal.id} className={styles.mealCard} onClick={() => handleViewDetail(meal)}>
+                  <View className={styles.cardHeader}>
+                    <Text className={styles.mealTitle}>{meal.title}</Text>
+                    <View className={`${styles.statusBadge} ${getStatusClass(meal.status, meal.cancelledType)}`}>
+                      <Text>{getStatusText(meal.status, meal.cancelledType)}</Text>
+                    </View>
                   </View>
-                  <View className={styles.infoTag}>
-                    <Text className={styles.infoText}>{meal.dateTime}</Text>
-                  </View>
-                  <View className={styles.infoTag}>
-                    <Text className={styles.infoText}>{meal.businessDistrict}</Text>
-                  </View>
-                  <View className={styles.infoTag}>
-                    <Text className={styles.infoText}>¥{meal.budget}/人</Text>
-                  </View>
-                </View>
 
-                <View className={styles.participants}>
-                  <Text className={styles.participantsLabel}>参与者</Text>
-                  <View className={styles.avatarStack}>
-                    {meal.participants.slice(0, 3).map((p, index) => (
+                  {otherParticipant && (
+                    <View className={styles.otherUserRow}>
                       <Image
-                        key={p.id}
-                        src={p.avatar}
-                        className={styles.avatar}
-                        style={{ left: `${index * 40}rpx` }}
+                        src={otherParticipant.avatar}
+                        className={styles.otherAvatar}
                         mode='aspectFill'
                       />
-                    ))}
-                  </View>
-                  <Text className={styles.participantsText}>
-                    {meal.participants.length}/{meal.maxParticipants}人
-                  </Text>
-                </View>
-
-                <View className={styles.actions}>
-                  {meal.status === 'confirmed' && (
-                    <>
-                      <View
-                        className={`${styles.actionButton} ${styles.checkinButton}`}
-                        onClick={() => handleCheckin(meal)}
-                      >
-                        <Text className={styles.checkinText}>到店打卡</Text>
-                      </View>
-                      <View
-                        className={`${styles.actionButton} ${styles.noShowButton}`}
-                        onClick={() => handleMarkNoShow(meal)}
-                      >
-                        <Text className={styles.noShowText}>标记爽约</Text>
-                      </View>
-                      <View
-                        className={`${styles.actionButton} ${styles.rateButton}`}
-                        onClick={() => handleRate(meal)}
-                      >
-                        <Text className={styles.rateText}>评价</Text>
-                      </View>
-                    </>
-                  )}
-                  {meal.status === 'completed' && (
-                    <View
-                      className={`${styles.actionButton} ${styles.rateButton}`}
-                      style={{ flex: 1 }}
-                      onClick={() => handleRate(meal)}
-                    >
-                      <Text className={styles.rateText}>
-                        {meal.ratings && meal.ratings.length > 0 ? '查看评价' : '去评价'}
+                      <Text className={styles.otherName}>
+                        {meal.creator.id === userStore.getCurrentUser().id ? otherParticipant.name : meal.creator.name}
                       </Text>
                     </View>
                   )}
-                  {meal.status === 'recruiting' && (
-                    <View
-                      className={`${styles.actionButton} ${styles.cancelButton}`}
-                      style={{ flex: 1 }}
-                      onClick={() => handleCancel(meal)}
-                    >
-                      <Text className={styles.cancelText}>取消</Text>
+
+                  <View className={styles.infoGrid}>
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoLabel}>🕐 时间</Text>
+                      <Text className={styles.infoValue}>{meal.dateTime}</Text>
                     </View>
-                  )}
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoLabel}>📍 地点</Text>
+                      <Text className={styles.infoValue}>{meal.businessDistrict}</Text>
+                    </View>
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoLabel}>💰 预算</Text>
+                      <Text className={styles.infoValue}>¥{meal.budget}/人</Text>
+                    </View>
+                    <View className={styles.infoItem}>
+                      <Text className={styles.infoLabel}>💳 付费</Text>
+                      <Text className={styles.infoValue}>{getPaymentTypeText(meal.paymentType)}</Text>
+                    </View>
+                  </View>
+
+                  <View className={styles.preferenceRow}>
+                    <View className={styles.preferenceTag}>
+                      <Text className={styles.preferenceText}>{meal.cuisine}</Text>
+                    </View>
+                    <View className={styles.preferenceTag}>
+                      <Text className={styles.preferenceText}>{meal.chatPreference}</Text>
+                    </View>
+                  </View>
+
+                  <View className={styles.actions}>
+                    {meal.status === 'confirmed' && (
+                      <>
+                        <View
+                          className={`${styles.actionButton} ${styles.checkinButton}`}
+                          onClick={(e) => { e.stopPropagation(); handleCheckin(meal); }}
+                        >
+                          <Text className={styles.checkinText}>到店打卡</Text>
+                        </View>
+                        <View
+                          className={`${styles.actionButton} ${styles.rateButton}`}
+                          onClick={(e) => { e.stopPropagation(); handleRate(meal); }}
+                        >
+                          <Text className={styles.rateText}>评价</Text>
+                        </View>
+                        <View
+                          className={`${styles.actionButton} ${styles.noShowButton}`}
+                          onClick={(e) => { e.stopPropagation(); handleMarkNoShow(meal); }}
+                        >
+                          <Text className={styles.noShowText}>标记爽约</Text>
+                        </View>
+                      </>
+                    )}
+                    {meal.status === 'recruiting' && (
+                      <View
+                        className={`${styles.actionButton} ${styles.cancelButton}`}
+                        style={{ flex: 1 }}
+                        onClick={(e) => { e.stopPropagation(); handleCancel(meal); }}
+                      >
+                        <Text className={styles.cancelText}>取消</Text>
+                      </View>
+                    )}
+                    {meal.status === 'completed' && (
+                      <View
+                        className={`${styles.actionButton} ${styles.rateButton}`}
+                        style={{ flex: 1 }}
+                        onClick={(e) => { e.stopPropagation(); handleRate(meal); }}
+                      >
+                        <Text className={styles.rateText}>
+                          {meal.ratings && meal.ratings.length > 0 ? '查看评价' : '去评价'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : (
           <View className={styles.emptyState}>
             <Text className={styles.emptyIcon}>🍽️</Text>
             <Text className={styles.emptyText}>暂无饭局</Text>
-            <Text className={styles.emptySubtext}>快去饭局广场找饭搭子吧</Text>
-            <View className={styles.createButton} onClick={() => Taro.switchTab({ url: '/pages/square/index' })}>
-              <Text className={styles.createButtonText}>去发现饭局</Text>
-            </View>
+            <Text className={styles.emptySubtext}>
+              {activeTab === 'upcoming' ? '快去饭局广场找饭搭子吧' : activeTab === 'pending' ? '暂时没有待确认的饭局' : '还没有已结束的饭局'}
+            </Text>
+            {activeTab === 'upcoming' && (
+              <View className={styles.createButton} onClick={() => Taro.switchTab({ url: '/pages/square/index' })}>
+                <Text className={styles.createButtonText}>去发现饭局</Text>
+              </View>
+            )}
           </View>
         )}
       </View>

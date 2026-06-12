@@ -372,3 +372,14 @@
   color: $color-text-white;
   font-weight: $font-weight-semibold;
 }
+
+.leaveButton {
+  background: rgba($color-error, 0.1);
+  border: 2rpx solid $color-error;
+}
+
+.leaveText {
+  font-size: $font-size-md;
+  color: $color-error;
+  font-weight: $font-weight-medium;
+}

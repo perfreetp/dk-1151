@@ -2,21 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { Meal } from '../../types';
-import { mealStore, chatStore, generateId } from '../../utils/store';
+import { mealStore, chatStore, userStore, generateId } from '../../utils/store';
 import styles from './index.module.scss';
 
 const DetailPage: React.FC = () => {
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    loadMealData();
+  }, [refreshKey]);
+
+  const loadMealData = () => {
     const { id } = Taro.getCurrentInstance().router?.params || {};
     if (id) {
       const foundMeal = mealStore.getById(id);
       setMeal(foundMeal || null);
     }
     setLoading(false);
-  }, []);
+  };
 
   const handleBack = () => {
     Taro.navigateBack();
@@ -27,10 +32,11 @@ const DetailPage: React.FC = () => {
       let existingChat = chatStore.getAll().find(c => c.mealId === meal.id);
       
       if (!existingChat) {
+        const currentUser = userStore.getCurrentUser();
         const newChat = {
           id: generateId(),
           mealId: meal.id,
-          participants: [meal.creator],
+          participants: [meal.creator, currentUser],
           messages: [],
           status: 'pending' as const,
           updatedAt: new Date().toISOString()
@@ -46,22 +52,96 @@ const DetailPage: React.FC = () => {
   };
 
   const handleJoin = () => {
-    if (meal) {
+    if (!meal) return;
+
+    const currentUser = userStore.getCurrentUser();
+    const isAlreadyJoined = meal.participants.some(p => p.id === currentUser.id);
+
+    if (isAlreadyJoined) {
+      Taro.showToast({ title: '您已参与此饭局', icon: 'none' });
+      return;
+    }
+
+    if (meal.participants.length >= meal.maxParticipants) {
+      Taro.showToast({ title: '人数已满，无法加入', icon: 'none' });
+      return;
+    }
+
+    Taro.showModal({
+      title: '参与饭局',
+      content: `确定要参与"${meal.title}"吗？`,
+      confirmText: '确认参与',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          const updatedParticipants = [...meal.participants, currentUser];
+          mealStore.update(meal.id, { participants: updatedParticipants });
+          
+          let existingChat = chatStore.getAll().find(c => c.mealId === meal.id);
+          if (!existingChat) {
+            const newChat = {
+              id: generateId(),
+              mealId: meal.id,
+              participants: [meal.creator, currentUser],
+              messages: [],
+              status: 'pending' as const,
+              updatedAt: new Date().toISOString()
+            };
+            chatStore.add(newChat);
+          }
+          
+          setRefreshKey(prev => prev + 1);
+          Taro.showToast({ title: '参与成功', icon: 'success' });
+        }
+      }
+    });
+  };
+
+  const handleLeave = () => {
+    if (!meal) return;
+
+    const currentUser = userStore.getCurrentUser();
+    const isCreator = meal.creator.id === currentUser.id;
+
+    if (isCreator) {
       Taro.showModal({
-        title: '参与饭局',
-        content: `确定要参与"${meal.title}"吗？`,
-        confirmText: '确认参与',
-        cancelText: '取消',
+        title: '取消饭局',
+        content: '确定要取消这个饭局吗？',
+        confirmText: '确定取消',
+        cancelText: '再想想',
         success: (res) => {
           if (res.confirm) {
-            Taro.showToast({ title: '参与成功', icon: 'success' });
+            mealStore.update(meal.id, { status: 'cancelled', cancelledType: 'self' });
+            Taro.showToast({ title: '已取消', icon: 'success' });
             setTimeout(() => {
               Taro.switchTab({ url: '/pages/mydates/index' });
             }, 1500);
           }
         }
       });
+      return;
     }
+
+    const isJoined = meal.participants.some(p => p.id === currentUser.id);
+    if (!isJoined) {
+      Taro.showToast({ title: '您还未参与此饭局', icon: 'none' });
+      return;
+    }
+
+    Taro.showModal({
+      title: '退出饭局',
+      content: '确定要退出这个饭局吗？',
+      confirmText: '确定退出',
+      cancelText: '再想想',
+      success: (res) => {
+        if (res.confirm) {
+          const updatedParticipants = meal.participants.filter(p => p.id !== currentUser.id);
+          mealStore.update(meal.id, { participants: updatedParticipants });
+          setRefreshKey(prev => prev + 1);
+          Taro.showToast({ title: '已退出', icon: 'success' });
+        }
+      }
+    });
   };
 
   const getStatusText = (status: string) => {
@@ -72,6 +152,8 @@ const DetailPage: React.FC = () => {
         return '已确认';
       case 'completed':
         return '已完成';
+      case 'cancelled':
+        return '已取消';
       default:
         return status;
     }
@@ -90,6 +172,10 @@ const DetailPage: React.FC = () => {
     }
   };
 
+  const getCurrentUser = () => {
+    return userStore.getCurrentUser();
+  };
+
   if (loading) {
     return (
       <View className={styles.container}>
@@ -105,6 +191,11 @@ const DetailPage: React.FC = () => {
       </View>
     );
   }
+
+  const currentUser = getCurrentUser();
+  const isCreator = meal.creator.id === currentUser.id;
+  const isJoined = meal.participants.some(p => p.id === currentUser.id);
+  const isFull = meal.participants.length >= meal.maxParticipants;
 
   return (
     <View className={styles.container}>
@@ -218,6 +309,7 @@ const DetailPage: React.FC = () => {
               <Text className={styles.sectionTitle}>已参与者</Text>
               <Text className={styles.participantsCount}>
                 {meal.participants.length}/{meal.maxParticipants}人
+                {isFull && <Text style={{ color: '#ff6b6b' }}>（已满）</Text>}
               </Text>
             </View>
             <View className={styles.participantsList}>
@@ -228,10 +320,13 @@ const DetailPage: React.FC = () => {
                     className={styles.participantAvatar}
                     mode='aspectFill'
                   />
-                  <Text className={styles.participantName}>{participant.name}</Text>
+                  <Text className={styles.participantName}>
+                    {participant.name}
+                    {participant.id === currentUser.id && '（我）'}
+                  </Text>
                 </View>
               ))}
-              {meal.participants.length < meal.maxParticipants && (
+              {meal.participants.length < meal.maxParticipants && !isJoined && (
                 <View className={styles.participantItem}>
                   <View
                     style={{
@@ -281,12 +376,29 @@ const DetailPage: React.FC = () => {
       </ScrollView>
 
       <View className={styles.footer}>
-        <View className={`${styles.actionButton} ${styles.chatButton}`} onClick={handleChat}>
-          <Text className={styles.chatText}>发起聊天</Text>
-        </View>
-        <View className={`${styles.actionButton} ${styles.joinButton}`} onClick={handleJoin}>
-          <Text className={styles.joinText}>参与饭局</Text>
-        </View>
+        {isJoined || isCreator ? (
+          <>
+            <View className={`${styles.actionButton} ${styles.chatButton}`} onClick={handleChat}>
+              <Text className={styles.chatText}>发起聊天</Text>
+            </View>
+            <View className={`${styles.actionButton} ${styles.leaveButton}`} onClick={handleLeave}>
+              <Text className={styles.leaveText}>{isCreator ? '取消饭局' : '退出饭局'}</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <View className={`${styles.actionButton} ${styles.chatButton}`} onClick={handleChat}>
+              <Text className={styles.chatText}>发起聊天</Text>
+            </View>
+            <View 
+              className={`${styles.actionButton} ${styles.joinButton}`} 
+              onClick={handleJoin}
+              style={{ opacity: isFull ? 0.5 : 1 }}
+            >
+              <Text className={styles.joinText}>{isFull ? '人数已满' : '参与饭局'}</Text>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
